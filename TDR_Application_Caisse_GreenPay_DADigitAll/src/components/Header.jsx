@@ -34,7 +34,7 @@ export default function Header({ onMenuClick }) {
         </button>
 
         <h1 className="text-lg md:text-xl font-semibold truncate">
-          Gestion des caisses
+          E-Cash
         </h1>
 
       </div>

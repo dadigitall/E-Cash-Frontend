@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../../services/api";
+import TelephoneField from "./TelephoneField";
 
 export default function EditEmployeeModal({
   isOpen,
@@ -88,15 +89,7 @@ export default function EditEmployeeModal({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Téléphone WhatsApp
-          </label>
-          <input
-            type="text"
-            value={telephone}
-            onChange={(e) => setTelephone(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2"
-          />
+          <TelephoneField value={telephone} onChange={setTelephone} />
         </div>
 
         <div>

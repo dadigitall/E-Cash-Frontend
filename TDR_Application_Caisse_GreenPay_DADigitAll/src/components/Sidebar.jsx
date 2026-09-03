@@ -54,7 +54,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 </div>
 
                 <p className="text-sm text-gray-400 mb-8">
-                    Gestion des caisses
+                    E-Cash - Gestion des caisses
                 </p>
 
                 <nav className="space-y-2">
