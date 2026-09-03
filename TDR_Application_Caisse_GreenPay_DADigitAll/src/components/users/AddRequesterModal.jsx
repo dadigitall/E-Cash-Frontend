@@ -86,6 +86,13 @@ export default function AddRequesterModal({ isOpen, onClose, onSuccess }) {
     }));
   }
 
+  function handleTelephoneChange(value) {
+    setForm((previous) => ({
+      ...previous,
+      telephone_whatsapp: value,
+    }));
+  }
+
   // =====================================================
   // CREATION
   // =====================================================
@@ -177,10 +184,6 @@ export default function AddRequesterModal({ isOpen, onClose, onSuccess }) {
 
         <div className="flex items-center justify-between mb-6">
           <div>
-            {/* <h2 className="text-xl font-semibold">
-                            Ajouter un demandeur
-                        </h2> */}
-
             <p className="text-sm text-gray-500 mt-1">
               Un email sera envoyé afin que l'employé définisse son mot de
               passe.
@@ -258,11 +261,10 @@ export default function AddRequesterModal({ isOpen, onClose, onSuccess }) {
               {/* TELEPHONE */}
 
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  Téléphone WhatsApp
-                </label>
-
-                <TelephoneField value={telephone} onChange={setTelephone} />
+                <TelephoneField
+                  value={form.telephone_whatsapp}
+                  onChange={handleTelephoneChange}
+                />
               </div>
 
               {/* POSTE */}
