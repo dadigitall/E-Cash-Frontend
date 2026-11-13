@@ -4,8 +4,10 @@ export default function ProofCard({
     onReject,
 }) {
 
-    const fichierUrl =
-        `http://127.0.0.1:8000/storage/${preuve.chemin_fichier}`;
+    const storageUrl =
+        import.meta.env.VITE_STORAGE_URL || "http://127.0.0.1:8000/storage";
+
+    const fichierUrl = `${storageUrl}/${preuve.chemin_fichier}`;
 
     return (
 
