@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 
+import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { useCompany } from "../../theme/CompanyThemeProvider";
 import { COMPANIES } from "../../theme/companies";
@@ -31,7 +32,6 @@ function SidebarContent({ menu, companyKey, groupId, onNavigate, onClose }) {
 
   return (
     <div className="flex h-full flex-col bg-side text-side-ink">
-      {/* Marque */}
       <div className="px-6 pb-5 pt-7">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -58,7 +58,6 @@ function SidebarContent({ menu, companyKey, groupId, onNavigate, onClose }) {
           )}
         </div>
 
-        {/* Entreprise(s) */}
         <div className="mt-6 flex items-center gap-3 rounded-2xl bg-current/5 p-3">
           {entreprise ? (
             <>
@@ -94,7 +93,6 @@ function SidebarContent({ menu, companyKey, groupId, onNavigate, onClose }) {
         </div>
       </div>
 
-      {/* Navigation */}
       <nav
         aria-label="Navigation principale"
         className="flex-1 overflow-y-auto px-4 pb-6"
@@ -257,31 +255,46 @@ function UserMenu({ user, sousTitre, onLogout }) {
 /* Layout                                                              */
 /* ------------------------------------------------------------------ */
 export default function AppLayout({ children }) {
-  const { user: auth, logout } = useAuth();
-  // Selon AuthContext, l'utilisateur est soit auth, soit auth.user
+  const ctx = useAuth();
+  const { logout } = ctx;
+  const auth = ctx?.user ?? ctx;
   const user = auth?.user ?? auth?.data?.user ?? auth;
   const { key: companyKey } = useCompany();
   const { pathname } = useLocation();
   const navigate = useNavigate();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [roleApi, setRoleApi] = useState(null);
 
-  // menuKey reçoit l'objet complet pour trouver le rôle
-  const menu = MENUS[menuKey(auth)];
+  // Rôle connu dans le contexte, sinon on le demande à l'API
+  const cle = menuKey(ctx, roleApi);
+
+  useEffect(() => {
+    if (cle) return;
+    api
+      .get("/me")
+      .then((res) =>
+        setRoleApi(res.data?.role ?? res.data?.user?.poste?.role ?? ""),
+      )
+      .catch(() => {});
+  }, [cle]);
+
+  const pret = cle !== null;
+  const menu = MENUS[cle ?? "requester"];
 
   // Page courante (route la plus précise)
   const courante = [...menu]
     .sort((a, b) => b.to.length - a.to.length)
     .find((i) => pathname === i.to || pathname.startsWith(`${i.to}/`));
 
-  // Page autorisée pour ce rôle ? Sinon retour au dashboard
-  const autorise = menu.some(
-    (i) => pathname === i.to || pathname.startsWith(`${i.to}/`),
-  );
+  // Page autorisée pour ce rôle ? (rien n'est bloqué tant que le rôle est inconnu)
+  const autorise =
+    !pret ||
+    menu.some((i) => pathname === i.to || pathname.startsWith(`${i.to}/`));
 
   useEffect(() => {
-    if (!autorise) navigate("/dashboard", { replace: true });
-  }, [autorise, navigate]);
+    if (pret && !autorise) navigate("/dashboard", { replace: true });
+  }, [pret, autorise, navigate]);
 
   // Sous-titre de l'utilisateur : son entreprise, sinon son email
   const e = user?.entreprise;
@@ -307,7 +320,6 @@ export default function AppLayout({ children }) {
   return (
     <MotionConfig reducedMotion="user">
       <div className="flex h-dvh overflow-hidden bg-canvas text-ink">
-        {/* Menu fixe (grand écran) */}
         <aside className="hidden w-72 shrink-0 border-r border-black/5 lg:block">
           <SidebarContent
             menu={menu}
@@ -316,7 +328,6 @@ export default function AppLayout({ children }) {
           />
         </aside>
 
-        {/* Menu tiroir (mobile) */}
         <AnimatePresence>
           {drawerOpen && (
             <>
@@ -348,7 +359,6 @@ export default function AppLayout({ children }) {
           )}
         </AnimatePresence>
 
-        {/* Colonne principale */}
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-20 flex h-[72px] shrink-0 items-center justify-between gap-4 border-b border-line bg-surface/80 px-4 backdrop-blur-md sm:px-8">
             <div className="flex min-w-0 items-center gap-3">
@@ -388,7 +398,7 @@ export default function AppLayout({ children }) {
               transition={{ duration: 0.35, ease: EASE }}
               className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-8 sm:py-8"
             >
-              {autorise ? (children ?? <Outlet />) : null}
+              {pret && autorise ? (children ?? <Outlet />) : null}
             </motion.div>
           </main>
         </div>

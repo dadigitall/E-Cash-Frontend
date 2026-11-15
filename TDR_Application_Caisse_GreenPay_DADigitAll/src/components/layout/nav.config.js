@@ -53,19 +53,32 @@ export const MENUS = {
 };
 
 // Rôles de la base : demandeur | gestionnaire (manager) | superviseur
-export function menuKey(auth) {
-  const brut =
-    auth?.role?.nom ??
-    auth?.role ??
-    auth?.user?.role ??
-    auth?.user?.poste?.role ??
-    auth?.poste?.role ??
-    "";
-  const role = normaliser(String(brut));
+const ROLES = ["gestionnaire", "superviseur", "demandeur"];
 
-  if (role.includes("superv")) return "supervisor";
-  if (role.includes("gestion") || role.includes("manager")) return "manager";
+// Cherche un rôle connu dans l'objet d'authentification, quelle que soit sa forme
+function trouverRole(ctx) {
+  const candidats = [
+    ctx?.role,
+    ctx?.role?.nom,
+    ctx?.user?.role,
+    ctx?.user?.poste?.role,
+    ctx?.user?.user?.role,
+    ctx?.user?.user?.poste?.role,
+    ctx?.poste?.role,
+    ctx?.data?.role,
+  ];
+  for (const c of candidats) {
+    const r = normaliser(String(c ?? ""));
+    if (ROLES.includes(r)) return r;
+  }
+  return null;
+}
 
-  // Rôle inconnu ou demandeur : menu le plus restreint
-  return "requester";
+// Retourne "manager" | "supervisor" | "requester" | null (rôle inconnu)
+export function menuKey(ctx, roleApi) {
+  const role = trouverRole(ctx) ?? normaliser(String(roleApi ?? ""));
+  if (role === "superviseur") return "supervisor";
+  if (role === "gestionnaire") return "manager";
+  if (role === "demandeur") return "requester";
+  return null;
 }
