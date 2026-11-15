@@ -11,6 +11,15 @@ import {
   Input,
 } from "@heroui/react";
 
+import { CompanyLogo, fcfa } from "../../ui/DashboardKit";
+import {
+  heroInput,
+  heroModal,
+  heroPrimaryBtn,
+  heroSelect,
+} from "../../ui/styles";
+import { companyFromName } from "../../../theme/companies";
+
 export default function SupplyCaisseModal({
   isOpen,
   onClose,
@@ -45,6 +54,9 @@ export default function SupplyCaisseModal({
   const selectedCaisse = caisses.find(
     (c) => String(c.id) === String(selectedCaisseId),
   );
+  const selectedKey = selectedCaisse
+    ? companyFromName(selectedCaisse.entreprise?.nom ?? selectedCaisse.nom)
+    : null;
 
   async function handleSubmit() {
     setError("");
@@ -106,13 +118,21 @@ export default function SupplyCaisseModal({
   }
 
   return (
-    <Modal isOpen={isOpen} onOpenChange={onClose}>
+    <Modal
+      isOpen={isOpen}
+      onOpenChange={onClose}
+      placement="center"
+      scrollBehavior="inside"
+      classNames={heroModal}
+    >
       <ModalContent>
         <ModalHeader>Approvisionner une caisse</ModalHeader>
 
-        <ModalBody>
+        <ModalBody className="gap-4">
           <Select
             label="Caisse"
+            variant="bordered"
+            classNames={heroSelect}
             selectedKeys={selectedCaisseId ? [String(selectedCaisseId)] : []}
             onSelectionChange={(keys) =>
               setSelectedCaisseId(Array.from(keys)[0] ?? "")
@@ -126,29 +146,46 @@ export default function SupplyCaisseModal({
           </Select>
 
           {selectedCaisse && (
-            <p className="text-gray-600">
-              Solde actuel :{" "}
-              <span className="font-semibold">
-                {Number(selectedCaisse.solde).toLocaleString("fr-FR")} FCFA
-              </span>
-            </p>
+            <div
+              data-company={selectedKey ?? undefined}
+              className="flex items-center gap-3 rounded-2xl bg-brand-soft p-3"
+            >
+              {selectedKey && (
+                <CompanyLogo companyKey={selectedKey} size={40} />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium text-ink">
+                  {selectedCaisse.nom}
+                </p>
+                <p className="text-sm text-muted">Solde actuel</p>
+              </div>
+              <p className="font-bold tabular-nums text-brand-deep">
+                {fcfa(selectedCaisse.solde)} FCFA
+              </p>
+            </div>
           )}
 
           <Input
             label="Montant à ajouter"
             type="number"
+            variant="bordered"
+            classNames={heroInput}
             value={montant}
             onValueChange={setMontant}
           />
 
           <Input
             label="Motif (optionnel)"
+            variant="bordered"
+            classNames={heroInput}
             value={motif}
             onValueChange={setMotif}
           />
 
           <Select
             label="Nature de la source"
+            variant="bordered"
+            classNames={heroSelect}
             selectedKeys={sourceType ? [sourceType] : []}
             onSelectionChange={(keys) => {
               setSourceType(Array.from(keys)[0] ?? "");
@@ -169,6 +206,8 @@ export default function SupplyCaisseModal({
           {sourceType === "directe" && (
             <Input
               label="Compte bancaire"
+              variant="bordered"
+              classNames={heroInput}
               value={compteBancaire}
               onValueChange={setCompteBancaire}
             />
@@ -177,6 +216,8 @@ export default function SupplyCaisseModal({
           {sourceType === "indirecte" && (
             <Select
               label="Mode de règlement"
+              variant="bordered"
+              classNames={heroSelect}
               selectedKeys={modeReglement ? [modeReglement] : []}
               onSelectionChange={(keys) => {
                 setModeReglement(Array.from(keys)[0] ?? "");
@@ -196,6 +237,8 @@ export default function SupplyCaisseModal({
           {modeReglement === "cheque" && (
             <Input
               label="Numéro de chèque"
+              variant="bordered"
+              classNames={heroInput}
               value={numeroCheque}
               onValueChange={setNumeroCheque}
             />
@@ -204,31 +247,38 @@ export default function SupplyCaisseModal({
           {modeReglement === "espece" && (
             <Input
               label="Déposé par (nom du DG)"
+              variant="bordered"
+              classNames={heroInput}
               value={deposePar}
               onValueChange={setDeposePar}
             />
           )}
 
           {selectedCaisse && montant && Number(montant) > 0 && (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted">
               Nouveau solde :{" "}
-              <span className="font-semibold text-green-600">
-                {(
-                  Number(selectedCaisse.solde) + Number(montant)
-                ).toLocaleString("fr-FR")}{" "}
-                FCFA
+              <span className="font-semibold text-brand">
+                {fcfa(Number(selectedCaisse.solde) + Number(montant))} FCFA
               </span>
             </p>
           )}
 
-          {error && <p className="text-sm text-danger">{error}</p>}
+          {error && (
+            <p role="alert" className="text-sm text-rose-600">
+              {error}
+            </p>
+          )}
         </ModalBody>
 
         <ModalFooter>
           <Button variant="light" onPress={onClose}>
             Annuler
           </Button>
-          <Button color="secondary" isLoading={loading} onPress={handleSubmit}>
+          <Button
+            className={heroPrimaryBtn}
+            isLoading={loading}
+            onPress={handleSubmit}
+          >
             Approvisionner
           </Button>
         </ModalFooter>

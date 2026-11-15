@@ -1,29 +1,16 @@
-import { Card, CardBody } from "@heroui/react";
+import { BalanceCard } from "../../ui/DashboardKit";
+import { companyFromName } from "../../../theme/companies";
 
+// Si le fichier est dans un autre dossier que components/manager/caisses/,
+// ajuste les deux chemins d'import ci-dessus.
 export default function CashboxCard({ caisse }) {
+  const nom = caisse.entreprise?.nom ?? caisse.nom;
 
-    return (
-
-        <Card shadow="sm">
-
-            <CardBody className="space-y-3">
-
-                <h3 className="text-lg font-semibold">
-
-                    {caisse.entreprise.nom}
-
-                </h3>
-
-                <p className="text-3xl font-bold">
-
-                    {Number(caisse.solde).toLocaleString("fr-FR")} FCFA
-
-                </p>
-
-            </CardBody>
-
-        </Card>
-
-    );
-
+  return (
+    <BalanceCard
+      label={nom}
+      value={Number(caisse.solde || 0)}
+      companyKey={companyFromName(nom) ?? undefined}
+    />
+  );
 }

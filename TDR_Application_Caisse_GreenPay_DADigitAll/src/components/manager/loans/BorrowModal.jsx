@@ -1,239 +1,202 @@
 import { useState } from "react";
 import {
-    Modal,
-    ModalContent,
-    ModalHeader,
-    ModalBody,
-    ModalFooter,
-    Button,
-    Select,
-    SelectItem,
-    Input,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Select,
+  SelectItem,
+  Input,
 } from "@heroui/react";
 
-export default function BorrowModal({
-    isOpen,
-    onClose,
-    caisses,
-    onSuccess,
-}) {
-    const [caissePreteuseId, setCaissePreteuseId] = useState("");
-    const [caisseEmprunteuseId, setCaisseEmprunteuseId] = useState("");
-    const [montant, setMontant] = useState("");
-    const [motif, setMotif] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+import { fcfa } from "../../ui/DashboardKit";
+import {
+  heroInput,
+  heroModal,
+  heroPrimaryBtn,
+  heroSelect,
+} from "../../ui/styles";
 
-    async function handleSubmit(e) {
-        e.preventDefault();
+// onSuccess(data) doit renvoyer une promesse : si elle échoue, le message
+// d'erreur s'affiche dans la modale et celle-ci reste ouverte.
+export default function BorrowModal({ isOpen, onClose, caisses, onSuccess }) {
+  const [caissePreteuseId, setCaissePreteuseId] = useState("");
+  const [caisseEmprunteuseId, setCaisseEmprunteuseId] = useState("");
+  const [montant, setMontant] = useState("");
+  const [motif, setMotif] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-        setError("");
+  async function handleSubmit(e) {
+    e.preventDefault();
 
-        if (!caissePreteuseId || !caisseEmprunteuseId) {
-            setError("Veuillez sélectionner les deux caisses.");
-            return;
-        }
+    setError("");
 
-        if (caissePreteuseId === caisseEmprunteuseId) {
-            setError(
-                "La caisse prêteuse et la caisse emprunteuse doivent être différentes."
-            );
-            return;
-        }
-
-        if (!montant || Number(montant) <= 0) {
-            setError("Veuillez saisir un montant valide.");
-            return;
-        }
-
-        if (!motif.trim()) {
-            setError("Veuillez indiquer le motif de l'emprunt.");
-            return;
-        }
-
-        try {
-            setLoading(true);
-
-            await onSuccess({
-                caisse_preteuse_id: Number(caissePreteuseId),
-                caisse_emprunteuse_id: Number(caisseEmprunteuseId),
-                montant: Number(montant),
-                motif: motif.trim(),
-            });
-
-            setCaissePreteuseId("");
-            setCaisseEmprunteuseId("");
-            setMontant("");
-            setMotif("");
-            setError("");
-
-            onClose();
-
-        } catch (error) {
-            setError(
-                error.response?.data?.message ||
-                "Impossible d'effectuer l'emprunt."
-            );
-        } finally {
-            setLoading(false);
-        }
+    if (!caissePreteuseId || !caisseEmprunteuseId) {
+      setError("Veuillez sélectionner les deux caisses.");
+      return;
     }
 
-    return (
-        <Modal
-            isOpen={isOpen}
-            onClose={onClose}
-            placement="center"
+    if (caissePreteuseId === caisseEmprunteuseId) {
+      setError(
+        "La caisse prêteuse et la caisse emprunteuse doivent être différentes.",
+      );
+      return;
+    }
+
+    if (!montant || Number(montant) <= 0) {
+      setError("Veuillez saisir un montant valide.");
+      return;
+    }
+
+    if (!motif.trim()) {
+      setError("Veuillez indiquer le motif de l'emprunt.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      await onSuccess({
+        caisse_preteuse_id: Number(caissePreteuseId),
+        caisse_emprunteuse_id: Number(caisseEmprunteuseId),
+        montant: Number(montant),
+        motif: motif.trim(),
+      });
+
+      setCaissePreteuseId("");
+      setCaisseEmprunteuseId("");
+      setMontant("");
+      setMotif("");
+      setError("");
+
+      onClose();
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Impossible d'effectuer l'emprunt.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const items = (libelleSolde) =>
+    caisses.map((caisse) => {
+      const nom = caisse.entreprise?.nom ?? caisse.nom;
+      return (
+        <SelectItem
+          key={String(caisse.id)}
+          textValue={`Caisse ${nom} — Solde ${fcfa(caisse.solde)} FCFA`}
         >
-            <ModalContent>
-                <form onSubmit={handleSubmit}>
+          <div className="flex flex-col">
+            <span className="font-medium">Caisse {nom}</span>
+            <span className="text-xs text-muted">
+              {libelleSolde} : {fcfa(caisse.solde)} FCFA
+            </span>
+          </div>
+        </SelectItem>
+      );
+    });
 
-                    <ModalHeader>
-                        Approvisionner une caisse
-                    </ModalHeader>
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      placement="center"
+      classNames={heroModal}
+    >
+      <ModalContent>
+        <form onSubmit={handleSubmit}>
+          <ModalHeader>Nouvel emprunt inter-caisses</ModalHeader>
 
-                    <ModalBody className="space-y-4">
+          <ModalBody className="gap-4">
+            <p className="text-sm text-muted">
+              Transférez des fonds d'une caisse vers une autre.
+            </p>
 
-                        <p className="text-sm text-gray-500">
-                            Transférez des fonds d'une caisse vers une autre.
-                        </p>
+            {error && (
+              <div
+                role="alert"
+                className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+              >
+                {error}
+              </div>
+            )}
 
-                        {error && (
-                            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">
-                                {error}
-                            </div>
-                        )}
+            <Select
+              label="Caisse prêteuse"
+              placeholder="Sélectionner la caisse qui prête"
+              variant="bordered"
+              classNames={heroSelect}
+              selectedKeys={
+                caissePreteuseId
+                  ? new Set([String(caissePreteuseId)])
+                  : new Set()
+              }
+              onSelectionChange={(keys) => {
+                const value = Array.from(keys)[0];
+                setCaissePreteuseId(value || "");
+              }}
+            >
+              {items("Solde")}
+            </Select>
 
-                        {/* CAISSE PRETEUSE */}
-                        <Select
-                            label="Caisse prêteuse"
-                            placeholder="Sélectionner la caisse qui prête"
-                            selectedKeys={
-                                caissePreteuseId
-                                    ? new Set([String(caissePreteuseId)])
-                                    : new Set()
-                            }
-                            onSelectionChange={(keys) => {
-                                const value = Array.from(keys)[0];
-                                setCaissePreteuseId(value || "");
-                            }}
-                        >
-                            {caisses.map((caisse) => (
-                                <SelectItem
-                                    key={String(caisse.id)}
-                                    textValue={`Caisse ${
-                                        caisse.entreprise?.nom ?? caisse.nom
-                                    } — Solde ${
-                                        Number(caisse.solde).toLocaleString(
-                                            "fr-FR"
-                                        )
-                                    } FCFA`}
-                                >
-                                    <div className="flex flex-col">
-                                        <span className="font-medium">
-                                            Caisse{" "}
-                                            {caisse.entreprise?.nom ??
-                                                caisse.nom}
-                                        </span>
+            <Select
+              label="Caisse à approvisionner"
+              placeholder="Sélectionner la caisse à approvisionner"
+              variant="bordered"
+              classNames={heroSelect}
+              selectedKeys={
+                caisseEmprunteuseId
+                  ? new Set([String(caisseEmprunteuseId)])
+                  : new Set()
+              }
+              onSelectionChange={(keys) => {
+                const value = Array.from(keys)[0];
+                setCaisseEmprunteuseId(value || "");
+              }}
+            >
+              {items("Solde actuel")}
+            </Select>
 
-                                        <span className="text-xs text-gray-500">
-                                            Solde :{" "}
-                                            {Number(
-                                                caisse.solde
-                                            ).toLocaleString("fr-FR")}{" "}
-                                            FCFA
-                                        </span>
-                                    </div>
-                                </SelectItem>
-                            ))}
-                        </Select>
+            <Input
+              type="number"
+              label="Montant"
+              placeholder="Ex : 50000"
+              variant="bordered"
+              classNames={heroInput}
+              value={montant}
+              onValueChange={setMontant}
+              min="1"
+            />
 
-                        {/* CAISSE EMPRUNTEUSE */}
-                        <Select
-                            label="Caisse à approvisionner"
-                            placeholder="Sélectionner la caisse à approvisionner"
-                            selectedKeys={
-                                caisseEmprunteuseId
-                                    ? new Set([
-                                          String(caisseEmprunteuseId),
-                                      ])
-                                    : new Set()
-                            }
-                            onSelectionChange={(keys) => {
-                                const value = Array.from(keys)[0];
-                                setCaisseEmprunteuseId(value || "");
-                            }}
-                        >
-                            {caisses.map((caisse) => (
-                                <SelectItem
-                                    key={String(caisse.id)}
-                                    textValue={`Caisse ${
-                                        caisse.entreprise?.nom ?? caisse.nom
-                                    } — Solde ${
-                                        Number(caisse.solde).toLocaleString(
-                                            "fr-FR"
-                                        )
-                                    } FCFA`}
-                                >
-                                    <div className="flex flex-col">
-                                        <span className="font-medium">
-                                            Caisse{" "}
-                                            {caisse.entreprise?.nom ??
-                                                caisse.nom}
-                                        </span>
+            <Input
+              label="Motif"
+              placeholder="Ex : Approvisionnement de la caisse"
+              variant="bordered"
+              classNames={heroInput}
+              value={motif}
+              onValueChange={setMotif}
+            />
+          </ModalBody>
 
-                                        <span className="text-xs text-gray-500">
-                                            Solde actuel :{" "}
-                                            {Number(
-                                                caisse.solde
-                                            ).toLocaleString("fr-FR")}{" "}
-                                            FCFA
-                                        </span>
-                                    </div>
-                                </SelectItem>
-                            ))}
-                        </Select>
+          <ModalFooter>
+            <Button variant="light" onPress={onClose} type="button">
+              Annuler
+            </Button>
 
-                        <Input
-                            type="number"
-                            label="Montant"
-                            placeholder="Ex : 50000"
-                            value={montant}
-                            onValueChange={setMontant}
-                            min="1"
-                        />
-
-                        <Input
-                            label="Motif"
-                            placeholder="Ex : Approvisionnement de la caisse"
-                            value={motif}
-                            onValueChange={setMotif}
-                        />
-
-                    </ModalBody>
-
-                    <ModalFooter>
-
-                        <Button
-                            variant="light"
-                            onPress={onClose}
-                            type="button"
-                        >
-                            Annuler
-                        </Button>
-
-                        <Button
-                            color="primary"
-                            type="submit"
-                            isLoading={loading}
-                        >
-                            Enregistrer l'emprunt
-                        </Button>
-
-                    </ModalFooter>
-
-                </form>
-            </ModalContent>
-        </Modal>
-    );
+            <Button
+              className={heroPrimaryBtn}
+              type="submit"
+              isLoading={loading}
+            >
+              Enregistrer l'emprunt
+            </Button>
+          </ModalFooter>
+        </form>
+      </ModalContent>
+    </Modal>
+  );
 }

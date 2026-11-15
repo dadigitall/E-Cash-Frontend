@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { UserPlus } from "lucide-react";
 
 import DashboardHeader from "../../components/manager/dashboard/DashboardHeader";
 import StatsCards from "../../components/manager/StatsCards";
@@ -8,16 +9,24 @@ import PendingRequests from "../../components/manager/requests/PendingRequests";
 import HistorySection from "../../components/manager/history/HistorySection";
 import QuickActions from "../../components/manager/actions/QuickActions";
 import PendingProofs from "../../components/manager/proofs/PendingProofs";
+import ProofViewerModal from "../../components/manager/proofs/ProofViewerModal";
 import BorrowModal from "../../components/manager/loans/BorrowModal";
 import AddRequesterModal from "../../components/users/AddRequesterModal";
 import ChooseCaisseModal from "../../components/manager/requests/ChooseCaisseModal";
 import SupplyCaisseModal from "../../components/manager/caisses/SupplyCaisseModal";
-import ValidateWithoutProofModal from "../../components/manager/requests/ValidateWithoutProofModal";
+import MoneyFlow from "../../components/ui/MoneyFlow";
+import { Pagination, Reveal } from "../../components/ui/DashboardKit";
+import { useForceNeutralTheme } from "../../theme/CompanyThemeProvider";
+import { normaliser } from "../../theme/companies";
 import api from "../../services/api";
 
-export default function ManagerDashboard() {
-  const location = useLocation();
+const NOMS_CAISSES_BASE = ["greenpay", "da digit all"];
 
+export default function ManagerDashboard() {
+  // Le manager voit les deux entreprises : thème neutre
+  useForceNeutralTheme();
+
+  const location = useLocation();
   const isHistorique = location.pathname === "/dashboard/historique";
 
   const [caisses, setCaisses] = useState([]);
@@ -39,6 +48,12 @@ export default function ManagerDashboard() {
   const [isSupplyModalOpen, setIsSupplyModalOpen] = useState(false);
   const [selectedDemande, setSelectedDemande] = useState(null);
 
+  // Preuve affichée dans la fenêtre
+  const [selectedProof, setSelectedProof] = useState(null);
+
+  // Animation des billets : { id, direction: "in" | "out", amount, label }
+  const [moneyFlow, setMoneyFlow] = useState(null);
+
   // =====================================================
   // CHARGEMENT DES DONNÉES
   // =====================================================
@@ -51,57 +66,30 @@ export default function ManagerDashboard() {
     }
   }, [isHistorique]);
 
-  // =====================================================
-  // DASHBOARD PRINCIPAL
-  // =====================================================
+  const toList = (data) => (Array.isArray(data) ? data : (data?.data ?? []));
 
   async function fetchDashboard() {
-    console.log("fetchDashboard appelé");
+    // allSettled : une route qui échoue ne bloque plus les deux autres
+    const [caissesRes, demandesRes, preuvesRes] = await Promise.allSettled([
+      api.get("/caisses"),
+      api.get("/demandes/en-attente"),
+      api.get("/preuves/en-attente"),
+    ]);
 
-    try {
-      const [caissesRes, demandesRes, preuvesRes] = await Promise.all([
-        api.get("/caisses"),
-        api.get("/demandes/en-attente"),
-        api.get("/preuves/en-attente"),
-      ]);
+    const lire = (res, route) => {
+      if (res.status === "fulfilled") return toList(res.value.data);
 
-      console.log("Réponse demandes :", demandesRes.data);
-      console.log("Demandes est un tableau ?", Array.isArray(demandesRes.data));
-
-      setCaisses(
-        Array.isArray(caissesRes.data)
-          ? caissesRes.data
-          : (caissesRes.data.data ?? []),
+      console.error(
+        `Erreur ${route} :`,
+        res.reason?.response?.status,
+        res.reason?.response?.data ?? res.reason,
       );
-      console.log(
-        "Noms des caisses reçues :",
-        caissesRes.data.map((c) => `"${c.nom}"`),
-      );
+      return [];
+    };
 
-      setDemandes(
-        Array.isArray(demandesRes.data)
-          ? demandesRes.data
-          : (demandesRes.data.data ?? []),
-      );
-
-      setPreuves(
-        Array.isArray(preuvesRes.data)
-          ? preuvesRes.data
-          : (preuvesRes.data.data ?? []),
-      );
-    } catch (error) {
-      console.error("Erreur API :", error);
-    }
-  }
-
-  const NOMS_CAISSES_BASE = ["greenpay", "da digit all"];
-
-  function normaliser(texte) {
-    return (texte || "")
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // retire les accents
-      .trim();
+    setCaisses(lire(caissesRes, "/caisses"));
+    setDemandes(lire(demandesRes, "/demandes/en-attente"));
+    setPreuves(lire(preuvesRes, "/preuves/en-attente"));
   }
 
   const caissesDashboard = caisses.filter((caisse) =>
@@ -118,21 +106,12 @@ export default function ManagerDashboard() {
     try {
       const response = await api.get(`/demandes/historique?page=${page}`);
 
-      console.log("Historique pagination :", response.data);
-
-      setHistorique(
-        Array.isArray(response.data)
-          ? response.data
-          : (response.data.data ?? []),
-      );
+      setHistorique(toList(response.data));
 
       setHistoriquePagination({
         current_page: response.data.current_page ?? 1,
-
         last_page: response.data.last_page ?? 1,
-
         per_page: response.data.per_page ?? 10,
-
         total: response.data.total ?? 0,
       });
 
@@ -174,6 +153,13 @@ export default function ManagerDashboard() {
   }
 
   async function handleConfirmAccept(id, caisseId) {
+    // Montant gardé avant que selectedDemande soit remis à null
+    const montant = Number(
+      selectedDemande?.montant ??
+        demandes.find((d) => d.id === id)?.montant ??
+        0,
+    );
+
     try {
       await api.post(`/demandes/${id}/accepter`, { caisse_id: caisseId });
 
@@ -181,6 +167,14 @@ export default function ManagerDashboard() {
 
       setIsCaisseChoiceModalOpen(false);
       setSelectedDemande(null);
+
+      // Billets qui sortent de la caisse
+      setMoneyFlow({
+        id: Date.now(),
+        direction: "out",
+        amount: montant,
+        label: "Demande acceptée",
+      });
     } catch (error) {
       if (error.response?.status === 422) {
         alert(
@@ -243,12 +237,15 @@ export default function ManagerDashboard() {
       alert("Emprunt enregistré avec succès.");
     } catch (error) {
       console.error("Erreur emprunt :", error);
-
       console.error(error.response?.data);
 
       throw error;
     }
   }
+
+  // =====================================================
+  // APPROVISIONNEMENT
+  // =====================================================
 
   async function handleSupply(caisseId, donneesApprovisionnement) {
     try {
@@ -259,7 +256,19 @@ export default function ManagerDashboard() {
 
       await fetchDashboard();
       setIsSupplyModalOpen(false);
-      alert("Caisse approvisionnée avec succès.");
+
+      // Billets qui entrent dans la caisse (pas d'alert : elle bloquerait l'animation).
+      // Adaptez "montant" au nom exact du champ envoyé par SupplyCaisseModal.
+      setMoneyFlow({
+        id: Date.now(),
+        direction: "in",
+        amount: Number(
+          donneesApprovisionnement?.montant ??
+            donneesApprovisionnement?.amount ??
+            0,
+        ),
+        label: "Caisse approvisionnée",
+      });
     } catch (error) {
       console.error("Erreur approvisionnement :", error);
       console.error(error.response?.data);
@@ -281,60 +290,25 @@ export default function ManagerDashboard() {
         // ==========================================
 
         <section className="space-y-6">
-          <div>
-            <h1 className="text-2xl font-semibold">Historique des demandes</h1>
-
-            <p className="text-gray-500 mt-1">
+          <Reveal>
+            <h1 className="text-2xl font-bold tracking-tight text-ink">
+              Historique des demandes
+            </h1>
+            <p className="mt-1 text-muted">
               Consultez les demandes précédemment effectuées par les employés.
             </p>
-          </div>
+          </Reveal>
 
-          <HistorySection demandes={historique} />
+          <Reveal delay={0.08}>
+            <HistorySection demandes={historique} />
+          </Reveal>
 
-          {historiquePagination.last_page > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-4">
-              <button
-                onClick={() => fetchHistorique(historiquePage - 1)}
-                disabled={historiquePage === 1}
-                className="px-4 py-2 border rounded-lg
-                                        disabled:opacity-40
-                                        disabled:cursor-not-allowed
-                                        hover:bg-gray-50"
-              >
-                Précédent
-              </button>
-
-              {Array.from(
-                {
-                  length: historiquePagination.last_page,
-                },
-                (_, index) => index + 1,
-              ).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => fetchHistorique(page)}
-                  className={`px-4 py-2 rounded-lg ${
-                    historiquePage === page
-                      ? "bg-blue-600 text-white"
-                      : "border hover:bg-gray-100"
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-
-              <button
-                onClick={() => fetchHistorique(historiquePage + 1)}
-                disabled={historiquePage === historiquePagination.last_page}
-                className="px-4 py-2 border rounded-lg
-                                        disabled:opacity-40
-                                        disabled:cursor-not-allowed
-                                        hover:bg-gray-50"
-              >
-                Suivant
-              </button>
-            </div>
-          )}
+          <Pagination
+            current={historiquePage}
+            last={historiquePagination.last_page}
+            total={historiquePagination.total}
+            onChange={fetchHistorique}
+          />
         </section>
       ) : (
         // ==========================================
@@ -342,40 +316,50 @@ export default function ManagerDashboard() {
         // ==========================================
 
         <>
-          <div className="flex justify-end">
+          <Reveal className="flex justify-end">
             <button
               type="button"
               onClick={() => setIsRequesterModalOpen(true)}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
+              className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 font-semibold text-white shadow-lg shadow-brand/25 transition hover:bg-brand-deep active:scale-[0.98]"
             >
-              + Ajouter un utilisateur
+              <UserPlus size={18} />
+              Ajouter un utilisateur
             </button>
-          </div>
+          </Reveal>
 
           <StatsCards
             caisses={caissesDashboard}
             totalCaisses={caisses.length}
           />
 
-          <AlertSoldeInsuffisant />
+          <Reveal delay={0.1}>
+            <AlertSoldeInsuffisant />
+          </Reveal>
 
-          <PendingRequests
-            demandes={demandes}
-            onAccept={handleAccept}
-            onValidateWithoutProof={handleValidateWithoutProof}
-            onReject={handleReject}
-          />
+          <Reveal delay={0.15}>
+            <PendingRequests
+              demandes={demandes}
+              onAccept={handleAccept}
+              onValidateWithoutProof={handleValidateWithoutProof}
+              onReject={handleReject}
+            />
+          </Reveal>
 
-          <PendingProofs
-            preuves={preuves}
-            onValidate={handleValidateProof}
-            onReject={handleRejectProof}
-          />
+          <Reveal delay={0.2}>
+            <PendingProofs
+              preuves={preuves}
+              onValidate={handleValidateProof}
+              onReject={handleRejectProof}
+              onView={setSelectedProof}
+            />
+          </Reveal>
 
-          <QuickActions
-            onBorrow={() => setIsBorrowModalOpen(true)}
-            onSupply={() => setIsSupplyModalOpen(true)}
-          />
+          <Reveal delay={0.25}>
+            <QuickActions
+              onBorrow={() => setIsBorrowModalOpen(true)}
+              onSupply={() => setIsSupplyModalOpen(true)}
+            />
+          </Reveal>
 
           <SupplyCaisseModal
             isOpen={isSupplyModalOpen}
@@ -396,17 +380,6 @@ export default function ManagerDashboard() {
             onClose={() => setIsRequesterModalOpen(false)}
           />
 
-          {/* <AddCaisseModal
-                        isOpen={isCaisseModalOpen}
-                        onClose={() =>
-                            setIsCaisseModalOpen(false)
-                        }
-                        onSuccess={async () => {
-                            await fetchDashboard();
-                            setIsCaisseModalOpen(false);
-                        }}
-                    /> */}
-
           <ChooseCaisseModal
             isOpen={isCaisseChoiceModalOpen}
             onClose={() => {
@@ -417,8 +390,17 @@ export default function ManagerDashboard() {
             caisses={caisses}
             onConfirm={handleConfirmAccept}
           />
+
+          <ProofViewerModal
+            preuve={selectedProof}
+            onClose={() => setSelectedProof(null)}
+            onValidate={handleValidateProof}
+            onReject={handleRejectProof}
+          />
         </>
       )}
+
+      <MoneyFlow event={moneyFlow} onDone={() => setMoneyFlow(null)} />
     </div>
   );
 }

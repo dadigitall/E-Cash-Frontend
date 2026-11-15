@@ -1,0 +1,91 @@
+/*
+  Thème par entreprise — à importer dans index.css APRÈS @import "tailwindcss" :
+  @import "./styles/company-theme.css";
+
+  Le thème est choisi par data-company="gp" | "da" posé sur <html>
+  (voir CompanyThemeProvider). Sans attribut : thème neutre (login, etc.).
+*/
+
+/* Expose les variables comme utilitaires : bg-brand, text-ink, border-line… */
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-side: var(--side);
+  --color-side-ink: var(--side-ink);
+  --color-side-title: var(--side-title);
+  --color-side-active: var(--side-active);
+  --color-side-active-ink: var(--side-active-ink);
+}
+
+/* Neutre (défaut) */
+:root,
+[data-company="neutral"] {
+  --brand: #1f3a5f;
+  --brand-deep: #14263f;
+  --brand-soft: #e6ecf5;
+  --accent: #c9a227;
+  --canvas: #f4f6f9;
+  --surface: #ffffff;
+  --ink: #121c2b;
+  --muted: #5d6b7d;
+  --line: #dfe5ec;
+  --glow: rgba(31, 58, 95, 0.35);
+  --side: #14263f;
+  --side-ink: #c5d2e6;
+  --side-title: #ffffff;
+  --side-active: #c9a227;
+  --side-active-ink: #2a2100;
+}
+
+/* DA Digit All : indigo + ambre, menu sombre */
+[data-company="da"] {
+  --brand: #3b2a8c;
+  --brand-deep: #241761;
+  --brand-soft: #e9e6fb;
+  --accent: #f59e0b;
+  --canvas: #f5f4fb;
+  --surface: #ffffff;
+  --ink: #191535;
+  --muted: #6a678f;
+  --line: #e6e4f3;
+  --glow: rgba(59, 42, 140, 0.35);
+  --side: #261963;
+  --side-ink: #d9d4ff;
+  --side-title: #ffffff;
+  --side-active: #f59e0b;
+  --side-active-ink: #2f1c00;
+}
+
+/* GreenPay : vert + blanc, menu clair */
+[data-company="gp"] {
+  --brand: #0f7a45;
+  --brand-deep: #095a32;
+  --brand-soft: #e0f4e8;
+  --accent: #2fbf71;
+  --canvas: #f3faf6;
+  --surface: #ffffff;
+  --ink: #0d2a1c;
+  --muted: #5b7a69;
+  --line: #dcebe2;
+  --glow: rgba(15, 122, 69, 0.35);
+  --side: #ffffff;
+  --side-ink: #4d6e5b;
+  --side-title: #0d2a1c;
+  --side-active: #e0f4e8;
+  --side-active-ink: #095a32;
+}
+
+@layer base {
+  body {
+    background-color: var(--canvas);
+    color: var(--ink);
+    transition: background-color 0.4s ease;
+  }
+}
